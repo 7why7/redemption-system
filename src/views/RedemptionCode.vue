@@ -11,6 +11,11 @@
         <span class="scan-text">扫码输入</span>
       </button>
     </div>
+    <p class="current-tip">
+        <span>提示： ABCD1234EFGH5678 为正确的验证码</span>&nbsp;&nbsp;&nbsp;&nbsp;
+        <span>提示： AAAA1111BBBB2222 为已使用的验证码</span>
+    </p>
+    <p class="current-tip"></p>
 
     <div class="code-input-container" :class="{ 'disabled': verifying }">
       <div class="input-wrapper">
@@ -632,7 +637,7 @@ export default {
   width: 48px;
   height: 48px;
   margin-right: 12px;
-  border-radius: 4px;
+  border-radius: 25px;
   overflow: hidden;
   background: #f5f7fa;
   display: flex;
@@ -1117,5 +1122,9 @@ export default {
 
 .header h2 {
   margin: 0;
+}
+.current-tip{
+    font-size: 12px;
+    color: #909399;
 }
 </style> 
