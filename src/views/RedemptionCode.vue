@@ -11,11 +11,9 @@
         <span class="scan-text">扫码输入</span>
       </button>
     </div>
-    <p class="current-tip">
-        <span>提示： ABCD1234EFGH5678 为正确的验证码</span>&nbsp;&nbsp;&nbsp;&nbsp;
-        <span>提示： AAAA1111BBBB2222 为已使用的验证码</span>
+    <p class="current-tip">提示： ABCD1234EFGH5678 为正确的验证码
     </p>
-    <p class="current-tip"></p>
+    <p class="current-tip">提示： AAAA1111BBBB2222 为已使用的验证码</p>
 
     <div class="code-input-container" :class="{ 'disabled': verifying }">
       <div class="input-wrapper">
@@ -23,6 +21,9 @@
           <input
             type="text"
             maxlength="4"
+            pattern="[A-Za-z0-9]*"
+            autocomplete="off"
+            spellcheck="false"
             v-model="codeSegments[index]"
             @input="handleInput($event, index)"
             @keydown="handleKeydown($event, index)"
@@ -30,6 +31,7 @@
             ref="codeInputs"
             class="code-input"
             :disabled="verifying"
+            placeholder="****"
           />
           <span v-if="index < 3" class="separator">-</span>
         </div>
@@ -214,8 +216,14 @@ export default {
   },
   methods: {
     handleInput (event, index) {
-      const value = event.target.value.toUpperCase()
-      this.codeSegments[index] = value
+      const value = event.target.value
+        .replace(/[^A-Za-z0-9]/g, '')
+        .toUpperCase()
+      
+      this.$nextTick(() => {
+        this.codeSegments[index] = value
+        event.target.value = value
+      })
 
       if (value.length === 4 && index < 3) {
         this.$refs.codeInputs[index + 1].focus()
@@ -227,6 +235,11 @@ export default {
     },
 
     handleKeydown (event, index) {
+      if (event.key === ' ') {
+        event.preventDefault()
+        return
+      }
+
       if (event.key === 'Backspace' && !this.codeSegments[index] && index > 0) {
         this.$refs.codeInputs[index - 1].focus()
       }
@@ -234,11 +247,13 @@ export default {
 
     handlePaste (event) {
       event.preventDefault()
-      const pastedText = event.clipboardData.getData('text').replace(/[^A-Za-z0-9]/g, '')
+      const pastedText = event.clipboardData.getData('text')
+        .replace(/[^A-Za-z0-9]/g, '')
+        .toUpperCase()
       
       if (pastedText.length > 0) {
         for (let i = 0; i < 4; i++) {
-          this.codeSegments[i] = pastedText.substr(i * 4, 4).toUpperCase()
+          this.codeSegments[i] = pastedText.substr(i * 4, 4)
         }
 
         if (this.fullCode.length === 16) {
@@ -1126,5 +1141,7 @@ export default {
 .current-tip{
     font-size: 12px;
     color: #909399;
+    margin: 0;
+    padding: 0;
 }
 </style> 
