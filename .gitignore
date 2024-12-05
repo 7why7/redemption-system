@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+/dist
+
+# IDE
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local env files
+.env.local
+.env.*.local
+
+# Cache
+.cache
+.temp
+
+# Build output
+/dist
+/build
+
+# System Files
+.DS_Store
+Thumbs.db 
+# 忽略 node_modules 目录中的 .gitattributes 文件
+node_modules/**/.gitattributes
