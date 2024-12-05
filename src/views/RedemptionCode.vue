@@ -53,7 +53,7 @@
         </div>
         <div class="result-content">
           <h3>{{ getResultTitle }}</h3>
-          <p class="result-message">{{ verifyResult.message }}</p>
+          <!-- <p class="result-message">{{ verifyResult.message }}</p> -->
           <p class="result-code">兑换码：{{ verifyResult.code }}</p>
           <p class="result-time">验证时间：{{ formatDate(verifyResult.verifyTime) }}</p>
           <div v-if="verifyResult.success && verifyResult.giftInfo" class="gift-content">
@@ -1143,5 +1143,87 @@ export default {
     color: #909399;
     margin: 0;
     padding: 0;
+}
+
+/* 夜间模式颜色优化 */
+:root[theme-mode="dark"] .redemption-code {
+  background: #2c2c2c;
+}
+
+:root[theme-mode="dark"] h2 {
+  color: #fff;
+}
+
+:root[theme-mode="dark"] .result-content h3 {
+  color: #ee0404;
+}
+
+:root[theme-mode="dark"] .gift-title {
+  color: #ee0404;
+  font-weight: 500;
+}
+
+:root[theme-mode="dark"] .gift-desc {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .item-name {
+  color: #fff;
+}
+
+:root[theme-mode="dark"] .result-message {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .result-time {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .order-info,
+:root[theme-mode="dark"] .time-info {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .current-tip {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .gift-item {
+  background: #363636;
+  border: 1px solid #4a4a4a;
+}
+
+:root[theme-mode="dark"] .item-icon {
+  background: #2c2c2c;
+}
+
+:root[theme-mode="dark"] .separator {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .modal-content {
+  background: #2c2c2c;
+  border: 1px solid #4a4a4a;
+}
+
+:root[theme-mode="dark"] .modal-header h3 {
+  color: #fff;
+}
+
+:root[theme-mode="dark"] .success-text {
+  color: #85ce61;
+}
+
+:root[theme-mode="dark"] .result-code {
+  color: #66b1ff;
+}
+
+:root[theme-mode="dark"] .scan-content {
+  background: #2c2c2c;
+  border: 1px solid #4a4a4a;
+}
+
+:root[theme-mode="dark"] .scan-header h3 {
+  color: #fff;
 }
 </style> 

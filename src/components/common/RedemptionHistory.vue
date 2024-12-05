@@ -190,17 +190,17 @@ export default {
 
 /* 深色主题支持 */
 :root[theme-mode="dark"] .redemption-history {
-  background: #1a1a1a;
-  color: #fff;
-}
-
-:root[theme-mode="dark"] .history-item {
   background: #2c2c2c;
 }
 
-:root[theme-mode="dark"] .history-item-info {
+:root[theme-mode="dark"] .history-header h3 {
+  color: #fff;
+  font-weight: 500;
+}
+
+:root[theme-mode="dark"] .history-item {
   background: #363636;
-  color: #909399;
+  border: 1px solid #4a4a4a;
 }
 
 :root[theme-mode="dark"] .history-time {
@@ -208,10 +208,33 @@ export default {
 }
 
 :root[theme-mode="dark"] .history-name {
-  color: #e0e0e0;
+  color: #fff;
+  font-weight: 500;
+}
+
+:root[theme-mode="dark"] .history-status {
+  color: #85ce61;
+  background: #283c34;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 :root[theme-mode="dark"] .empty-history {
   color: #909399;
+}
+
+:root[theme-mode="dark"] .clear-btn {
+  background: #f56c6c;
+  opacity: 0.9;
+}
+
+:root[theme-mode="dark"] .clear-btn:hover {
+  background: #f78989;
+  opacity: 1;
+}
+
+:root[theme-mode="dark"] .history-item-info {
+  color: #fff;
+  background: #2c2c2c;
 }
 </style> 
