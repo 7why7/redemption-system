@@ -6,11 +6,23 @@
     </div>
     <div v-if="records.length" class="history-list">
       <div v-for="record in records" :key="record.orderNo" class="history-item">
-        <div class="history-info">
-          <span class="history-time">{{ formatDate(record.redeemTime) }}</span>
-          <span class="history-name">{{ record.giftName }}</span>
+        <div class="history-main">
+          <div class="history-header-info">
+            <span class="history-time">{{ formatDate(record.redeemTime) }}</span>
+            <span class="history-status" :class="getStatusClass(record.status)">
+              {{ record.status }}
+            </span>
+          </div>
+          <div class="history-content">
+            <span class="history-name">{{ record.giftName }}</span>
+            <div class="history-items">
+              <span v-for="item in record.items" :key="item.name" class="history-item-info">
+                {{ item.name }} x{{ item.amount }}
+              </span>
+            </div>
+            <span class="history-order">订单号：{{ record.orderNo }}</span>
+          </div>
         </div>
-        <span class="history-status">{{ record.status }}</span>
       </div>
     </div>
     <div v-else class="empty-history">
@@ -45,6 +57,12 @@ export default {
         localStorage.removeItem('redemptionHistory')
         this.records = []
         this.$emit('clear')
+      }
+    },
+    getStatusClass(status) {
+      return {
+        'status-success': status === '领取成功',
+        'status-failed': status === '领取失败'
       }
     }
   },
@@ -97,17 +115,23 @@ export default {
 
 .history-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
+  flex-direction: column;
+  padding: 15px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
 }
 
-.history-info {
+.history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.history-header-info {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .history-time {
@@ -116,18 +140,78 @@ export default {
 }
 
 .history-name {
-  font-size: 14px;
+  font-size: 16px;
   color: #2c3e50;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.history-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.history-item-info {
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.history-order {
+  font-size: 12px;
+  color: #909399;
 }
 
 .history-status {
   font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.status-success {
   color: #67c23a;
+  background: #f0f9eb;
+}
+
+.status-failed {
+  color: #f56c6c;
+  background: #fef0f0;
 }
 
 .empty-history {
   text-align: center;
   color: #909399;
   padding: 30px 0;
+}
+
+/* 深色主题支持 */
+:root[theme-mode="dark"] .redemption-history {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+:root[theme-mode="dark"] .history-item {
+  background: #2c2c2c;
+}
+
+:root[theme-mode="dark"] .history-item-info {
+  background: #363636;
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .history-time {
+  color: #909399;
+}
+
+:root[theme-mode="dark"] .history-name {
+  color: #e0e0e0;
+}
+
+:root[theme-mode="dark"] .empty-history {
+  color: #909399;
 }
 </style> 

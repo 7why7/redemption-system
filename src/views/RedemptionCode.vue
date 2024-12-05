@@ -1,25 +1,41 @@
 <template>
   <div class="redemption-code">
-    <h2>礼包兑换</h2>
-    <div class="verify-status" v-if="verifying">
-      <div class="loading-spinner"></div>
-      <span>正在验证...</span>
+    <div class="header">
+      <h2>礼包兑换</h2>
+      <button 
+        class="scan-btn" 
+        @click="startScan"
+        :disabled="verifying"
+      >
+        <i class="scan-icon"></i>
+        <span class="scan-text">扫码输入</span>
+      </button>
     </div>
 
     <div class="code-input-container" :class="{ 'disabled': verifying }">
-      <div v-for="(_, index) in 4" :key="`group-${index}`" class="input-group">
-        <input
-          type="text"
-          maxlength="4"
-          v-model="codeSegments[index]"
-          @input="handleInput($event, index)"
-          @keydown="handleKeydown($event, index)"
-          @paste="handlePaste"
-          ref="codeInputs"
-          class="code-input"
+      <div class="input-wrapper">
+        <div v-for="(_, index) in 4" :key="`group-${index}`" class="input-group">
+          <input
+            type="text"
+            maxlength="4"
+            v-model="codeSegments[index]"
+            @input="handleInput($event, index)"
+            @keydown="handleKeydown($event, index)"
+            @paste="handlePaste"
+            ref="codeInputs"
+            class="code-input"
+            :disabled="verifying"
+          />
+          <span v-if="index < 3" class="separator">-</span>
+        </div>
+        <button 
+          v-if="hasInput" 
+          class="clear-btn" 
+          @click="clearAll"
           :disabled="verifying"
-        />
-        <span v-if="index < 3" class="separator">-</span>
+        >
+          <span class="clear-icon">×</span>
+        </button>
       </div>
     </div>
 
@@ -45,7 +61,7 @@
                 </div>
                 <div class="item-info">
                   <span class="item-name">{{ item.name }}</span>
-                  <span class="item-amount">x{{ item.amount }}</span>
+                  <span class="item-amount">{{ item.amount }}</span>
                 </div>
               </div>
             </div>
@@ -72,7 +88,11 @@
           <h3>{{ redeemResult.success ? '领取成功' : '领取失败' }}</h3>
         </div>
         <div class="modal-body">
-          <div v-if="redeemResult.success">
+          <div v-if="redeemResult.success" class="success-animation">
+            <div class="success-icon">
+              <div class="success-icon-circle"></div>
+              <div class="success-icon-line"></div>
+            </div>
             <p class="success-text">礼包已发放到您的账户</p>
             <p class="order-info">订单号：{{ redeemResult.result.orderNo }}</p>
             <p class="time-info">领取时间：{{ formatDate(redeemResult.result.redeemTime) }}</p>
@@ -82,18 +102,56 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="confirm-btn" @click="closeModal">确定</button>
+          <div class="modal-actions">
+            <button 
+              v-if="redeemResult.success" 
+              class="clear-input-btn" 
+              @click="clearAndClose"
+            >
+              清除并继续
+            </button>
+            <button 
+              class="confirm-btn" 
+              @click="closeModal"
+            >
+              {{ redeemResult.success ? '关闭' : '确定' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <redemption-history ref="history" @clear="handleHistoryClear" />
+
+    <div class="scan-modal" v-if="showScanner" @click="closeScanner">
+      <div class="scan-content" @click.stop>
+        <div class="scan-header">
+          <h3>扫描兑换码</h3>
+          <button class="close-btn" @click="closeScanner">×</button>
+        </div>
+        <div class="scan-area">
+          <video 
+            ref="video" 
+            class="scan-video"
+            :class="{ 'scanning': isScanning }"
+          ></video>
+          <canvas ref="canvas" style="display: none;"></canvas>
+          <div class="scan-overlay">
+            <div class="scan-frame"></div>
+          </div>
+        </div>
+        <div class="scan-tip">
+          将兑换码对准扫描框
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { verifyCode, redeemGift } from '@/api/redemption'
 import RedemptionHistory from '@/components/common/RedemptionHistory.vue'
+import jsQR from 'jsqr'
 
 export default {
   name: 'RedemptionCode',
@@ -106,7 +164,10 @@ export default {
       verifyResult: null,
       verifying: false,
       redeeming: false,
-      redeemResult: null
+      redeemResult: null,
+      showScanner: false,
+      isScanning: false,
+      stream: null
     }
   },
   computed: {
@@ -141,6 +202,9 @@ export default {
         default:
           return '验证失败'
       }
+    },
+    hasInput() {
+      return this.codeSegments.some(segment => segment.length > 0)
     }
   },
   methods: {
@@ -236,9 +300,11 @@ export default {
 
     closeModal () {
       this.redeemResult = null
-      if (this.redeemResult && this.redeemResult.success) {
-        this.resetForm()
-      }
+    },
+
+    clearAndClose() {
+      this.resetForm()
+      this.closeModal()
     },
 
     formatDate (dateString) {
@@ -256,7 +322,19 @@ export default {
       const history = localStorage.getItem('redemptionHistory')
       let records = history ? JSON.parse(history) : []
       
-      records.unshift(record)
+      const historyRecord = {
+        ...record,
+        giftName: this.verifyResult.giftInfo.name,
+        redeemTime: new Date().toISOString(),
+        status: '领取成功',
+        orderNo: record.orderNo,
+        items: this.verifyResult.giftInfo.items.map(item => ({
+          name: item.name,
+          amount: item.amount
+        }))
+      }
+      
+      records.unshift(historyRecord)
       
       records = records.slice(0, 5)
       
@@ -267,6 +345,76 @@ export default {
 
     handleHistoryClear() {
       console.log('历史记录已清除')
+    },
+
+    clearAll() {
+      this.codeSegments = ['', '', '', '']
+      this.verifyResult = null
+      this.$refs.codeInputs[0].focus()
+    },
+
+    async startScan() {
+      this.showScanner = true
+      this.$nextTick(async () => {
+        try {
+          const constraints = {
+            video: {
+              facingMode: 'environment'
+            }
+          }
+          this.stream = await navigator.mediaDevices.getUserMedia(constraints)
+          this.$refs.video.srcObject = this.stream
+          this.$refs.video.play()
+          this.isScanning = true
+          this.scanCode()
+        } catch (error) {
+          console.error('Camera error:', error)
+          alert('无法访问摄像头，请确保已授予摄像头权限')
+          this.closeScanner()
+        }
+      })
+    },
+
+    closeScanner() {
+      this.showScanner = false
+      this.isScanning = false
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop())
+        this.stream = null
+      }
+    },
+
+    scanCode() {
+      if (!this.isScanning) return
+
+      const video = this.$refs.video
+      const canvas = this.$refs.canvas
+      const context = canvas.getContext('2d')
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight
+        canvas.width = video.videoWidth
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height)
+
+        if (code) {
+          // 检查是否符合兑换码格式（16位字母数字）
+          const validCode = /^[A-Za-z0-9]{16}$/.test(code.data)
+          if (validCode) {
+            this.closeScanner()
+            // 将扫描到的码填入输入框
+            for (let i = 0; i < 4; i++) {
+              this.codeSegments[i] = code.data.substr(i * 4, 4).toUpperCase()
+            }
+            this.verify()
+          }
+        }
+      }
+
+      if (this.isScanning) {
+        requestAnimationFrame(() => this.scanCode())
+      }
     }
   }
 }
@@ -276,7 +424,9 @@ export default {
 .redemption-code {
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
 .verify-status {
@@ -320,12 +470,14 @@ export default {
 .code-input {
   width: 80px;
   height: 50px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--theme-border);
   border-radius: 8px;
   text-align: center;
   font-size: 24px;
   font-weight: bold;
   text-transform: uppercase;
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
 }
 
 .code-input:focus {
@@ -507,6 +659,7 @@ export default {
   color: #2c3e50;
   margin-bottom: 4px;
   font-weight: 500;
+  text-align: left;
 }
 
 .item-amount {
@@ -600,5 +753,369 @@ export default {
 .next-btn:disabled {
   background-color: #a0cfff;
   cursor: not-allowed;
+}
+
+/* 取成功动画 */
+.success-animation {
+  position: relative;
+  padding: 20px 0;
+}
+
+.success-icon {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 20px;
+}
+
+.success-icon-circle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border: 3px solid #67c23a;
+  border-radius: 50%;
+  animation: circle-animation 0.3s ease-in;
+}
+
+.success-icon-line {
+  position: absolute;
+  top: 28px;
+  left: 16px;
+  width: 28px;
+  height: 14px;
+  border-bottom: 3px solid #67c23a;
+  border-left: 3px solid #67c23a;
+  transform: rotate(-45deg);
+  animation: line-animation 0.15s ease-in 0.3s forwards;
+  opacity: 0;
+}
+
+@keyframes circle-animation {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes line-animation {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 响应式布局优化 */
+@media screen and (max-width: 768px) {
+  .redemption-code {
+    padding: 10px;
+  }
+
+  .code-input {
+    width: 60px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .separator {
+    margin: 0 5px;
+    font-size: 20px;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .clear-btn {
+    right: -35px;
+    width: 25px;
+    height: 25px;
+  }
+
+  .clear-icon {
+    font-size: 16px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .code-input {
+    width: 50px;
+    height: 35px;
+    font-size: 18px;
+  }
+
+  .gift-items {
+    grid-template-columns: 1fr;
+  }
+
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .history-status {
+    align-self: flex-end;
+  }
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.clear-btn {
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--theme-border);
+  color: var(--theme-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.clear-btn:hover {
+  background: #f56c6c;
+  color: white;
+}
+
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-icon {
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.scan-btn {
+  width: auto;
+  height: 32px;
+  border: none;
+  border-radius: 16px;
+  background: var(--theme-border);
+  color: var(--theme-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  padding: 0 12px;
+  font-size: 14px;
+  background: #4b6682;
+  color: white;
+}
+
+.scan-icon::before {
+  content: '📷';
+  font-size: 16px;
+  margin-right: 4px;
+}
+
+.scan-text {
+  font-size: 14px;
+}
+
+.scan-btn:hover {
+  background: #66b1ff;
+  color: white;
+}
+
+.scan-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #a0cfff;
+}
+
+.scan-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.scan-content {
+  width: 90%;
+  max-width: 400px;
+  background: var(--theme-bg);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.scan-header {
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.scan-header h3 {
+  margin: 0;
+  color: var(--theme-text);
+}
+
+.close-btn {
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: var(--theme-text);
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-area {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.scan-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+.scan-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-frame {
+  width: 70%;
+  height: 70%;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  position: relative;
+}
+
+.scan-frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #409EFF;
+  animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.scan-tip {
+  padding: 15px;
+  text-align: center;
+  color: var(--theme-text);
+}
+
+@media screen and (max-width: 768px) {
+  .scan-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .scan-icon::before {
+    font-size: 14px;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.clear-input-btn {
+  background: #67c23a;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.clear-input-btn:hover {
+  background: #85ce61;
+}
+
+.confirm-btn {
+  min-width: 80px;
+}
+
+@media screen and (max-width: 480px) {
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+  
+  .clear-input-btn,
+  .confirm-btn {
+    width: 100%;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  margin: 0;
 }
 </style> 
